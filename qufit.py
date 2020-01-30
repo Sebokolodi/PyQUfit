@@ -125,20 +125,19 @@ if __name__=='__main__':
 
         Dtime = end-start
        
+        best_fits = numpy.array([float(param) for param
+                in a.get_best_fit()['parameters']])
+
+        logZ = a.get_best_fit()['log_likelihood']
+ 
+        array = numpy.hstack((best_fits, logZ, Dtime))
+
+        for i in range(nparams + 2):
+            write_stats.write('%.4f \t'%array[i])
+        write_stats.write('\n')
           
         if args.make_plots:
-        
-            best_fits = numpy.array([float(param) for param
-                     in a.get_best_fit()['parameters']])
-
-            logZ = a.get_best_fit()['log_likelihood']
- 
-            array = numpy.hstack((best_fits, logZ, Dtime))
-
-            for i in range(nparams + 2):
-                write_stats.write('%.4f \t'%array[i])
-            write_stats.write('\n')
-
+       
             chains = a.get_equal_weighted_posterior()
             figure = corner.corner(chains[:,:nparams], labels=parameter_names, 
                    show_titles=True, use_math_text=True, max_n_ticks=3, 
