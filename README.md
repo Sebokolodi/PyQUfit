@@ -1,2 +1,2 @@
 # PyQUfit
-A program for fitting to astronomical Stokes Q and U using nested sampling algorithm (PyMultinest).
+A software program designed for fitting astronomical Stokes Q and U data using nested sampling algorithm (PyMultinest).
