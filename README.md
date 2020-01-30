@@ -10,14 +10,14 @@ Package requirements:
 
 Executing the code:
 
-1. Required Files (Not optional):
-  1.1 Stokes Q, U and I data in separate text files. 
-  1.2 Frequency text file.
-  1.3 Noise in Q, U, and I images. 
+1. Required Files (Not optional):   
+  1.1 Stokes Q, U and I data in separate text files.      
+  1.2 Frequency text file.      
+  1.3 Noise in Q, U, and I images.      
 
-2. Required information
-  2.1 user-defined model in a script 'define_model.py'
-  2.2 user-defined priors intervals in a script 'define_priors.py'
+2. Required information     
+  2.1 user-defined model in a script 'define_model.py'        
+  2.2 user-defined priors intervals in a script 'define_priors.py'      
 
 
 
