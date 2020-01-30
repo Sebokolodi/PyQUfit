@@ -2,8 +2,8 @@
 
 import pymultinest
 import os, sys
-import model
-import prior
+import define_model
+import define_prior
 import argparse
 import numpy
 import corner
@@ -14,7 +14,7 @@ import time
 
 def LogLike(cube, ndim, nparams):
 
-    qmod, umod  = model.model(x, cube)
+    qmod, umod  = define_model.model(x, cube)
     chisq = 0.5 * ((q - qmod)/sigmaq)**2.0
     chisu = 0.5 * ((u - umod)/sigmau)**2.0
     prefactor = numpy.log(numpy.pi * sigmaq * sigmau)
@@ -117,7 +117,7 @@ if __name__=='__main__':
         parameter_names =  ['param%d'%i for i in range(nparams)]
     
         start = time.time()
-        pymultinest.run(LogLike, prior.prior, nparams,
+        pymultinest.run(LogLike, define_prior.prior, nparams,
                    outputfiles_basename=output, **kwargs)
         a = pymultinest.analyse.Analyzer(nparams, 
                    outputfiles_basename=output)
@@ -144,7 +144,7 @@ if __name__=='__main__':
                    title_fmt='.3f')
             figure.savefig(output +'-TRIANGLE.PNG')
 
-            qmodel, umodel = model.model(x, best_fits)
+            qmodel, umodel = define_model.model(x, best_fits)
             fig, (ax, ay) = pylab.subplots(1, 2, figsize=(10, 5))
             ax.errorbar(x, q, yerr=sigmaq, fmt='bo', alpha=0.4, ecolor='y', ms=2) 
             ax.plot(x, qmodel, 'r', lw=2)
@@ -160,30 +160,4 @@ if __name__=='__main__':
             #pylab.show()
 
     write_stats.close()
-
-     
-
-
-        
-            
-   
-         
-
-             
-
-    
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
 
