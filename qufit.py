@@ -85,13 +85,13 @@ if __name__=='__main__':
            enumerate(zip(frequency, Qdata, Udata, Idata, noiseQ, 
                noiseU, noiseI)):
 
-        Q =  numpy.loadtxt(qtxt)[:1110]
-        U =  numpy.loadtxt(utxt)[:1110]
-        I =  numpy.loadtxt(itxt)[:1110]
-        noiseq =  numpy.loadtxt(nq)[:1110]
-        noiseu =  numpy.loadtxt(nu)[:1110]
-        noisei =  numpy.loadtxt(ni)[:1110]
-        freq =  numpy.loadtxt(ftxt)[:1110]
+        Q =  numpy.loadtxt(qtxt)
+        U =  numpy.loadtxt(utxt)
+        I =  numpy.loadtxt(itxt)
+        noiseq =  numpy.loadtxt(nq)
+        noiseu =  numpy.loadtxt(nu)
+        noisei =  numpy.loadtxt(ni)
+        freq =  numpy.loadtxt(ftxt)
 
     
         prefix = args.prefix or 'FIT-QU' 
