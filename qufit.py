@@ -10,6 +10,8 @@ import corner
 import pylab
 import json
 import time
+import matplotlib
+matplotlib.rcParams.update({'font.size':16})
 
 
 def LogLike(cube, ndim, nparams):
@@ -36,6 +38,8 @@ if __name__=='__main__':
     add('-nq', '--noiseq', dest='noiseq', action='append', help='Noise in q') 
     add('-nu', '--noiseu', dest='noiseu', action='append', help='Noise in u') 
     add('-ni', '--noisei', dest='noisei', action='append', help='Noise in i')
+    add('-ec', '--eclip', dest='error_clip', help='Error to clip in fractional q and u.' 
+        ' default is 10%', type=float, default=0.1)
     add('-nparam', '--nparam', dest='num_parameters', help='Number of parameters.', type=int) 
     add('-plot', '--make-plot', dest='make_plots', help='Make plots', type=bool, default=False) 
     add('-pref', '--prefix', dest='prefix', help='Prefix for output files.')
@@ -49,20 +53,22 @@ if __name__=='__main__':
         settings = json.load(settings)
     kwargs = settings['multinest']        
 
+    freq  = [item for item in args.freq[0].split(',')]
     Qdata = [item for item in args.qdata[0].split(',')]
     Udata = [item for item in args.udata[0].split(',')]
     Idata = [item for item in args.idata[0].split(',')] 
-    noiseQ = [item for item in args.noiseq[0].split(',')]
-    noiseU = [item for item in args.noiseu[0].split(',')]
-    noiseI = [item for item in args.noisei[0].split(',')] 
-    frequency = [item for item in args.freq[0].split(',')]
+    Qnoise = [item for item in args.noiseq[0].split(',')]
+    Unoise = [item for item in args.noiseu[0].split(',')]
+    Inoise = [item for item in args.noisei[0].split(',')] 
+
 
     nparams = args.num_parameters
     outdir = args.outdir or 'FIT'
     if not os.path.exists(outdir): os.mkdir(outdir)
 
+    # check the lengths of data in the files are consistent.
     ndimQ, ndimU, ndimI = len(Qdata), len(Udata), len(Idata)
-    ndimNoiseQ, ndimNoiseU, ndimNoiseI = len(noiseQ), len(noiseU), len(noiseI)
+    ndimNoiseQ, ndimNoiseU, ndimNoiseI = len(Qnoise), len(Unoise), len(Inoise)
 
     if ndimNoiseQ != ndimNoiseU or ndimNoiseQ != ndimNoiseI:
         sys.exit('The number of noise files are not equal.')
@@ -75,15 +81,16 @@ if __name__=='__main__':
             noiseQ = noiseQ * ndimQ
             noiseU = noiseU * ndimQ
             noiseI = noiseI * ndimQ
-    if len(frequency) != ndimQ:
-        if len(frequency) == 1:
-            frequency = frequency * ndimQ
+    if len(freq) != ndimQ:
+        if len(freq) == 1:
+            freq = freq * ndimQ
         
     write_stats = open(outdir + '/LoS-Stats.txt', 'w')
+    clip_error = args.error_clip
 
     for i, (ftxt, qtxt, utxt, itxt, nq, nu, ni) in \
-           enumerate(zip(frequency, Qdata, Udata, Idata, noiseQ, 
-               noiseU, noiseI)):
+           enumerate(zip(freq, Qdata, Udata, Idata, Qnoise, 
+               Unoise, Inoise)):
 
         Q =  numpy.loadtxt(qtxt)
         U =  numpy.loadtxt(utxt)
@@ -113,51 +120,71 @@ if __name__=='__main__':
         sigmaq = sigmaq[ind]
         sigmau = sigmau[ind]
 
+        # remove channels with error in fractional pol > error_clip
+        ind_clip = numpy.where( (sigmaq + sigmau)/2.0 > clip_error)
+        x = numpy.delete(x, ind_clip)
+        q = numpy.delete(q, ind_clip)
+        u = numpy.delete(u, ind_clip)
+        sigmaq = numpy.delete(sigmaq, ind_clip)
+        sigmau = numpy.delete(sigmau, ind_clip)
 
         parameter_names =  ['param%d'%i for i in range(nparams)]
-    
+        # run multinest    
         start = time.time()
         pymultinest.run(LogLike, define_prior.prior, nparams,
                    outputfiles_basename=output, **kwargs)
         a = pymultinest.analyse.Analyzer(nparams, 
                    outputfiles_basename=output)
         end = time.time()
-
         Dtime = end-start
-       
+
+        # get important fitting results.
+        
         best_fits = numpy.array([float(param) for param
                 in a.get_best_fit()['parameters']])
 
-        logZ = a.get_best_fit()['log_likelihood']
- 
-        array = numpy.hstack((best_fits, logZ, Dtime))
+        errors_best_fits = numpy.array([a.get_stats()['marginals'][i]['sigma']
+                    for i in range(nparams)])
+        loglike = a.get_best_fit()['log_likelihood']
+        stats = a.get_mode_stats()
+        logZ = stats['global evidence']
+        logZerr = stats['global evidence error']
+        AIC = 2 * nparams - 2 * loglike
+        BIC = nparams * numpy.log(len(x)) - 2 * loglike
 
-        for i in range(nparams + 2):
-            write_stats.write('%.4f \t'%array[i])
+        store_output = numpy.hstack((best_fits, errors_best_fits, loglike, 
+              logZ, logZerr, AIC, BIC, Dtime))
+
+        # write the output
+        for i in range(nparams * 2 + 6):
+            write_stats.write('%.4f \t'%store_output[i])
         write_stats.write('\n')
-          
+
+        #TODO: include RM synthesis?
+        #TODO: try also fitting in Faraday depth space. 
+
+        # making plots.
         if args.make_plots:
        
             chains = a.get_equal_weighted_posterior()
             figure = corner.corner(chains[:,:nparams], labels=parameter_names, 
                    show_titles=True, use_math_text=True, max_n_ticks=3, 
                    title_fmt='.3f')
-            figure.savefig(output +'-TRIANGLE.PNG')
+            figure.savefig(output +'-TRIANGLE.png')
 
             qmodel, umodel = define_model.model(x, best_fits)
             fig, (ax, ay) = pylab.subplots(1, 2, figsize=(10, 5))
-            ax.errorbar(x, q, yerr=sigmaq, fmt='bo', alpha=0.4, ecolor='y', ms=2) 
+            ax.errorbar(x, q, yerr=sigmaq, fmt='co', alpha=0.4, ecolor='c', ms=2) 
             ax.plot(x, qmodel, 'r', lw=2)
             ax.set_ylabel('fractional q')
             ax.set_xlabel('$\lambda^2$ [m$^{-2}$]')
             
-            ay.errorbar(x, u, yerr=sigmau, fmt='bo', alpha=0.4, ecolor='y', ms=2) 
+            ay.errorbar(x, u, yerr=sigmau, fmt='co', alpha=0.4, ecolor='c', ms=2) 
             ay.plot(x, umodel, 'r', lw=2)
             ay.set_ylabel('fractional u')
             ay.set_xlabel('$\lambda^2$ [m$^{-2}$]')
             pylab.tight_layout()
-            pylab.savefig(output+ '.PNG')
-            #pylab.show()
+            pylab.savefig(output+ '.png')
 
     write_stats.close()
 
