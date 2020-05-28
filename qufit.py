@@ -78,9 +78,9 @@ if __name__=='__main__':
 
     if ndimNoiseQ != ndimQ:
         if ndimNoiseQ == 1:
-            noiseQ = noiseQ * ndimQ
-            noiseU = noiseU * ndimQ
-            noiseI = noiseI * ndimQ
+            Qnoise = Qnoise * ndimQ
+            Unoise = Unoise * ndimQ
+            Inoise = Inoise * ndimQ
     if len(freq) != ndimQ:
         if len(freq) == 1:
             freq = freq * ndimQ
