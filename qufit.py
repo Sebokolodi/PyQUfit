@@ -49,38 +49,27 @@ def Faraday2Lambda():
     return
 
 
-def check_length_data(f, Q, U, I, sigQ, sigU, sigI):
+def check_number_of_files(freq_files, data_files, noise_files):
 
-    """ checks if the number of files provided consistent """
+    """ checks if the number of files provided consistent.
+    If files for the noise/frequency is not equal to files 
+    of the data, then use first noise/frequency file all the data,
+    and ignore the rest.
 
-    freq  = [item for item in f[0].split(',')]
-    Qdata = [item for item in Q[0].split(',')]
-    Udata = [item for item in U[0].split(',')]
-    Idata = [item for item in I[0].split(',')] 
-    Qnoise = [item for item in sigQ[0].split(',')]
-    Unoise = [item for item in sigU[0].split(',')]
-    Inoise = [item for item in sigI[0].split(',')] 
-
-    # check the lengths of data in the files are consistent.
-    ndimQ, ndimU, ndimI = len(Qdata), len(Udata), len(Idata)
-    ndimNoiseQ, ndimNoiseU, ndimNoiseI = len(Qnoise), len(Unoise), len(Inoise)
-
-    if ndimNoiseQ != ndimNoiseU or ndimNoiseQ != ndimNoiseI:
-        sys.exit('The number of noise files are not equal.')
     
-    if ndimQ != ndimU or ndimQ != ndimI:
-        sys.exit('The number of Q/U/I files are not consistent.')
+    """
 
-    if ndimNoiseQ != ndimQ:
-        if ndimNoiseQ == 1:
-            Qnoise = Qnoise * ndimQ
-            Unoise = Unoise * ndimQ
-            Inoise = Inoise * ndimQ
-    if len(freq) != ndimQ:
-        if len(freq) == 1:
-            freq = freq * ndimQ
+    freq  = [item for item in freq_files[0].split(',')]
+    input_data = [item for item in data_files[0].split(',')]
+    input_noise = [item for item in noise_files[0].split(',')]
 
-    return freq, Qdata, Udata, Idata, Qnoise, Unoise, Inoise
+
+    if  len(input_noise) != len(input_data):
+        input_noise = [input_noise[0]] * len(input_data)
+    if len(freq) != len(input_data):
+        freq = [freq[0]] * len(input_data)
+
+    return freq, input_data, input_noise
 
 
 
@@ -137,18 +126,16 @@ if __name__=='__main__':
 
     add('-json', '--json', dest='json_file', help='a json file with multinest settings.')
     add('-f', '--freq', dest='freq', action='append', help='Frequency file (text)')
-    add('-q', '--qdata', dest='qdata', action='append', help='Stokes q')
-    add('-u', '--udata', dest='udata', action='append', help='Stokes u')
-    add('-i', '--idata', dest='idata', action='append', help='Stokes i')  
-    add('-nq', '--noiseq', dest='noiseq', action='append', help='Noise in q') 
-    add('-nu', '--noiseu', dest='noiseu', action='append', help='Noise in u') 
-    add('-ni', '--noisei', dest='noisei', action='append', help='Noise in i')
-    add('-ec', '--eclip', dest='error_clip', help='Error to clip in fractional q and u.' 
+    add('-indata', '--input-data', dest='data', action='append',
+       help='Text file should contain Stokes Q, U, and I with shape (N, 3) where N is data length.')  
+    add('-noise', '--noise', dest='noise', action='append',
+       help='Text file should contain noise in Stokes Q, U and I maps. See indata.') 
+    add('-rm', '--error-clip', dest='error_clip', help='Error to clip in fractional q and u.' 
         ' default is 10 percent', type=float, default=0.1)
-    add('-nparam', '--nparam', dest='num_parameters', help='Number of parameters.', type=int) 
+    add('-nparam', '--numparam', dest='num_parameters', help='Number of parameters.', type=int) 
     add('-plot', '--make-plot', dest='make_plots', help='Make plots', type=bool, default=False) 
     add('-pref', '--prefix', dest='prefix', help='Prefix for output files.')
-    add('-out', '--outdir', dest='outdir', help='Output directory for output files. '
+    add('-outdir', '--outdir', dest='outdir', help='Output directory for output files. '
         'if not there already it will be created. If not specified, all plots will be '
         'saved in "FIT". ')
 
@@ -168,33 +155,48 @@ if __name__=='__main__':
     nparams = args.num_parameters
     clip_error = args.error_clip
 
-    freq, Qdata, Udata, Idata, Qnoise, Unoise, Inoise = check_length_data(
-          args.freq, args.qdata, args.udata, args.idata, args.noiseq,
-          args.noiseu, args.noisei)
+    freq_files, data_files, noise_files = check_number_of_files(
+          args.freq, args.data, args.noise)
 
     residuals = lambda data, model, sigmas: (data-model)/sigmas
 
 
-    for i, (ftxt, qtxt, utxt, itxt, nq, nu, ni) in \
-           enumerate(zip(freq, Qdata, Udata, Idata, Qnoise, 
-               Unoise, Inoise)):
+    for i, (freqtxt, datatxt, noisetxt) in enumerate(zip(freq_files,
+           data_files, noise_files)):
 
         prefix = args.prefix or 'FIT-QU'
         prefix =  prefix + '-%d-'%i
         output =  os.path.join(outdir, prefix)
 
-        Q =  numpy.loadtxt(qtxt)
-        U =  numpy.loadtxt(utxt)
-        I =  numpy.loadtxt(itxt)
-        noiseq =  numpy.loadtxt(nq)
-        noiseu =  numpy.loadtxt(nu)
-        noisei =  numpy.loadtxt(ni)
-        freq =  numpy.loadtxt(ftxt)
+        try:
+            input_data_LoS =  numpy.loadtxt(datatxt)
+        except:
+            sys.exit('>>> something wrong with your input data files.')
+
+        try:
+            input_noise_LoS =  numpy.loadtxt(noisetxt)
+        except:
+            sys.exit('>>> something wrong with your input noise files.')
+
+        try:
+            input_freq_LoS =  numpy.loadtxt(freqtxt)
+        except:
+            sys.exit('>>> something wrong with your input frequency file.')
+
+        Q = input_data_LoS[:, 0]
+        U = input_data_LoS[:, 1]
+        I = input_data_LoS[:, 2]
+        noiseq = input_noise_LoS[:, 0]
+        noiseu = input_noise_LoS[:, 1]
+        noisei = input_noise_LoS[:, 2]
+        
+        if len(Q) != len(noiseq) or len(Q) != len(input_freq_LoS):
+             sys.exit('>>> Length of input data, noise, and frequency not equal.')        
 
         q, u = Q/I, U/I
         pabs = pow( pow(q, 2) + pow(u, 2), 0.5)
         Pabs = pow( pow(Q, 2) + pow(U, 2), 0.5)
-        x = (3.0e8/freq)**2
+        x = (3.0e8/input_freq_LoS)**2
 
         # compute sigma
         sigmaq, sigmau, sigmap, sigmaPA = return_sigma(
@@ -233,8 +235,6 @@ if __name__=='__main__':
                    outputfiles_basename=output)
         end = time.time()
         Dtime = end - start
-
-        #TODO: return reduced chi-squared, and a histogram and p-values.
 
         # get important fitting results.
         best_fits = numpy.array([float(param) for param
