@@ -16,8 +16,6 @@ matplotlib.rcParams.update({'font.size':16})
 from scipy import signal
 
 
-
-#TODO: include RM synthesis?
 #TODO: try also fitting in Faraday depth space. 
 #TODO: run from fits images. User must provide pixel locations.
 
@@ -184,25 +182,27 @@ def do_plots(x, qdata, udata, sigmap, sigmaPA, qmodel, umodel, nparams,
 
  
     fig, (aw, ax, ay, az) = pylab.subplots(1, 4, figsize=(20, 5))
-    aw.set_title('$\chi^2_v$=%.2f, p-val=%.3f'%(redchisq, pval))
+    aw.set_title('$\chi^2_v$=%.2f, p-value=%.3f'%(redchisq, pval))
 
-    aw.errorbar(x, numpy.absolute(pdata), yerr=sigmap, fmt='bo', ms=2, ecolor='yellow')
+    aw.errorbar(x, numpy.absolute(pdata), yerr=sigmap, fmt='bo',
+         ms=2, ecolor='yellow', mfc='white')
     aw.plot(x, numpy.absolute(pmodel), 'r', lw=2)
     aw.set_ylabel('Fractional Polarization')
     aw.set_xlabel('$\lambda^2$ [m$^{2}$]')
             
-    ax.errorbar(x, angle_data, yerr=sigmaPA, fmt='b.', ecolor='yellow', ms=2)
-    ax.plot(x, angle_model, 'r.', ms=2)
+    ax.errorbar(x, angle_data, yerr=sigmaPA, fmt='bo',
+        color='yellow', ms=2, mfc='white')
+    ax.plot(x, angle_model, 'ro', ms=2, mfc='white')
     ax.set_ylabel('Polarization Angle [radians]')
     ax.set_xlabel('$\lambda^2$ [m$^{2}$]')
 
-    ay.plot(phi_range, numpy.absolute(fdata), 'b', lw=2)
-    ay.plot(phi_range, numpy.absolute(fmodel), 'r', lw=2)
+    ay.plot(phi_range, numpy.absolute(fdata), 'b', lw=1)
+    ay.plot(phi_range, numpy.absolute(fmodel), 'r', lw=1)
     ay.set_ylabel('Faraday Spectrum')
     ay.set_xlabel('Faraday Depth [rad m$^{-2}$]')
 
-    az.hist(residual_data, histtype='step', density=True, color='b', lw=2)
-    az.plot(distrib, normal, color='black', lw=2)
+    az.hist(residual_data, histtype='step', density=True, color='b', lw=1)
+    az.plot(distrib, normal, color='green', lw=1)
     az.set_xlabel('Normalized Residuals')
     az.set_ylabel('Probability Distribution')
 
