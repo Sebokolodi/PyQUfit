@@ -209,7 +209,7 @@ def do_plots(x, qdata, udata, sigmap, sigmaPA, qmodel, umodel, nparams,
 
     pylab.tight_layout()
     pylab.savefig(output+ 'model.png')
-    pylab.show()
+    #pylab.show()
 
 
 
