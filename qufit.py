@@ -185,10 +185,11 @@ def do_plots(x, qdata, udata, sigmap, sigmaPA, qmodel, umodel, nparams,
     aw.set_title('$\chi^2_v$=%.2f, p-value=%.3f'%(redchisq, pval))
 
     aw.errorbar(x, numpy.absolute(pdata), yerr=sigmap, fmt='bo',
-         ms=2, ecolor='yellow', mfc='white')
-    aw.plot(x, numpy.absolute(pmodel), 'r', lw=2)
+         ms=2, ecolor='yellow', mfc='white', label='data')
+    aw.plot(x, numpy.absolute(pmodel), 'r', lw=2, label='model')
     aw.set_ylabel('Fractional Polarization')
     aw.set_xlabel('$\lambda^2$ [m$^{2}$]')
+    aw.legend(loc='best')
             
     ax.errorbar(x, angle_data, yerr=sigmaPA, fmt='bo',
         color='yellow', ms=2, mfc='white')
