@@ -14,7 +14,7 @@ Package requirements:
 3. Matplotlib  
 
 
-Executing the code:
+The files:
 
 1. Required Files (Not optional):   
   1.1 Stokes Q, U and I data in separate text files.      
