@@ -3,11 +3,18 @@ A software program designed for fitting a user-defined model to Stokes Q and U a
 
 Installation:
 
+At this point, you simply clone this github page. Not yet in pypi.
+
+
 
 Package requirements:
-pyMultinest 
-Numpy
-Matplotlib
+
+pyMultinest   
+
+Numpy 
+
+Matplotlib  
+
 
 
 Executing the code:
