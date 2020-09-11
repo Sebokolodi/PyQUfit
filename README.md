@@ -22,20 +22,25 @@ Executing the code:
   2.2 user-defined priors intervals in a script 'define_priors.py'      
 
 
-How to run this:
+How to run this:  
+ 
+    ./qufit.py -h 
 
-./qufit.py -h 
+"""
+Performs QU-fitting to the data.    
+  
+optional arguments: 
 
-Performs QU-fitting to the data.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -json JSON_FILE, --json JSON_FILE
-                        a json file with multinest settings.
-  -f FREQ, --freq FREQ  Frequency file (text)
-  -indata DATA, --input-data DATA
+  -h, --help            show this help message and exit 
+  -json JSON_FILE, --json JSON_FILE   
+                        a json file with multinest settings.  
+                        
+  -f FREQ, --freq FREQ  Frequency file (text) 
+  
+  -indata DATA, --input-data DATA 
                         Text file should contain Stokes Q, U, and I with shape
                         (N, 3) where N is data length.
+                            
   -noise NOISE, --noise NOISE
                         Text file should contain noise in Stokes Q, U and I
                         maps. See indata.
@@ -61,7 +66,7 @@ optional arguments:
                         Output directory for output files. if not there
                         already it will be created. If not specified, all
                         plots will be saved in "FIT".
-
+"""
 
 
 So on a terminal you can simply do:
