@@ -9,12 +9,9 @@ At this point, you simply clone this github page. Not yet in pypi.
 
 Package requirements:
 
-pyMultinest   
-
-Numpy 
-
-Matplotlib  
-
+1. pyMultinest   
+2. Numpy   
+3. Matplotlib  
 
 
 Executing the code:
