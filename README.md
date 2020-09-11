@@ -38,7 +38,7 @@ So on a terminal you can simply do:
 Where -indata is the input data (text file) containting Stokes Q, U, and I with shape (N, 3) where N is data length. -f is text file containing the frequencies, -noise is the noise estimates for each plane (should be same dimension as the indata), -json is Jason file, this is needed -- it configures the multinest inputs, -phi_range is the maximum Faraday depth, and dphi is the sampling size of the Faraday depths in rad/m/m. Niter is number of iterations to use for iteration when performing RM-synthesis clean, and gain is similar to any cleaning (RM-synthesis is  performed mainly for plotting purposes TODO: should make optional). If you want plots output, indicate with True. The code plots Fractional pol vs wavelength squared, position angle vs. wavelength-squared, and Faraday Spectrum. 
 
 
-NOTE: at this point, this is done mainly for text files. The reason being is that QU-fitting through multinest takes long especially for the data sizes that led to this code (~ 600000 pixels each with 2000  planes). This would take longer. Usually multinest takes roughly 20 seconds for 4 parameter model, thus, for 600000 pixels this amount to ~3000 hours (125 days)!!! 
+NOTE: at this point, this is done mainly for text files. The reason being is that QU-fitting through multinest takes long especially for the data sizes that led to this code (~ 600000 pixels each with 2000  planes). Usually multinest takes roughly 20 seconds for a single pixel, with 4 parameter model and 1200 frequency planes, thus, for 600000 pixels this amount to ~3000 hours (125 days)!!! 
 
 
 
