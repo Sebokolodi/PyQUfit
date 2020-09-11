@@ -45,3 +45,10 @@ NOTE: at this point, this is done mainly for text files. The reason being is tha
 You can also provide a list of lines of sight on the terminal, separated by a comma. However, in case this is tedious, we encourage using run-all.py, in this you read all the data files into the script and pass it to qufit.py. All you need in this case would be 
 
     ipython run-all.py
+
+
+Output:
+
+1. Multinest output   
+2. Plot showing fractional vs. lam^2, PA vs lam^2, Faraday spectrum vs Faraday depth, and residuals.    
+3. Text file with fitted parameters, errors, loglikelihood, evidence, error in evidence, reduced Chi-squared, AIC, BIC, and excution time.    
