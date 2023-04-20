@@ -9,10 +9,14 @@ import numpy
 import json
 import time
 import doplots 
+import rmsynthesis as rmsyn
+from do_hogbom_clean import do_rmclean_hogbom 
+import glob
 
 
 #TODO: try also fitting in Faraday depth space. 
 #TODO: run from fits images. User must provide pixel locations.
+
 
 
 def LogLike(cube, ndim, nparams):
@@ -62,6 +66,38 @@ def return_sigma(q, u, pabs, Q, U, I, Pabs, nQ, nU, nI):
     return sq, su, sp, sPA
 
 
+def Faraday2Lambda(lam2, phi_range, pol_lam2):
+
+    """
+    Computes Faraday Spectra using RM-Synthesis 
+    as defined by Brentjens and de Bruyn (2005)
+
+    """
+
+    N = len(lam2)
+    l20 = lam2.mean()
+    fdata = numpy.zeros([len(phi_range)], dtype=complex)
+    for k, phi in enumerate(phi_range):
+        fdata[k] = pow(N, -1) * numpy.sum(pol_lam2 * 
+                numpy.exp(-2j * (lam2-l20) * phi))    
+    return fdata
+
+
+def extrap(x, xp, yp):
+    """
+    Wrapper to allow numy.interp to linearly extrapolate at function ends.
+    
+    np.interp function with linear extrapolation
+    http://stackoverflow.com/questions/2745329/how-to-make-scipy-interpolate
+    -give-a-an-extrapolated-result-beyond-the-input-ran
+    """
+    y = numpy.interp(x, xp, yp)
+    y = numpy.where(x < xp[0], yp[0]+(x-xp[0])*(yp[0]-yp[1])/(xp[0]-xp[1]), y)
+    y = numpy.where(x > xp[-1], yp[-1]+(x-xp[-1])*(yp[-1]-yp[-2])/(xp[-1]-xp[-2]),
+                 y)
+    return y
+     
+     
 
 if __name__=='__main__':
 
@@ -71,13 +107,11 @@ if __name__=='__main__':
     add = parser.add_argument
 
     add('-json', '--json', dest='json_file', help='a json file with multinest settings.')
-    add('-f', '--freq', dest='freq', action='append', help='Frequency file (text)')
     add('-indata', '--input-data', dest='data', action='append',
        help='Text file should contain Stokes Q, U, and I with shape (N, 3) where N is data length.')  
-    add('-noise', '--noise', dest='noise', action='append',
-       help='Text file should contain noise in Stokes Q, U and I maps. See indata.') 
+    add('-mod', dest='model', help='A model to call', type=str, default='m1')
     add('-rm', '--error-clip', dest='error_clip', help='Error to clip in fractional q and u.' 
-        ' default is 10 percent', type=float, default=0.1)
+        ' default is 10 percent', type=float, default=0.8)
     add('-nparam', '--numparam', dest='num_parameters', help='Number of parameters.', type=int) 
     add('-phi', '--faraday-depth', dest='faraday_depth', help='Maximum Faraday depth in rad/m/m',
        type=float, default=5000) 
@@ -85,7 +119,7 @@ if __name__=='__main__':
         type=float, default=10) 
     add('-niter', '--rmclean-niter', dest='rmsyn_niter', 
         help='RMclean number of iteratation. Useful for plotting. Default=1000',
-        type=float, default=1000) 
+        type=float, default=10000) 
     add('-gain', '--rmclean-gain', dest='rmsyn_gain', 
         help='RMclean gain factor. Useful when plotting. Default=0.1',
         type=float, default=0.1) 
@@ -97,6 +131,10 @@ if __name__=='__main__':
 
     args = parser.parse_args()
 
+    model_type = args.model
+    
+    
+    
     with open(args.json_file, 'r') as settings:
         settings = json.load(settings)
     kwargs = settings['multinest']        
@@ -112,132 +150,164 @@ if __name__=='__main__':
     nparams = args.num_parameters
     clip_error = args.error_clip
 
-    freq_files, data_files, noise_files = check_number_of_files(
-          args.freq, args.data, args.noise)
+    #freq_files, data_files, noise_files = check_number_of_files(
+    #      args.freq, args.data, args.noise)
 
+    input_data = args.data
+    
     residuals = lambda data, model, sigmas: (data-model)/sigmas
 
 
-    for i, (freqtxt, datatxt, noisetxt) in enumerate(zip(freq_files,
-           data_files, noise_files)):
-        i += 200
 
-        prefix = args.prefix or 'FIT-QU'
-        prefix =  prefix + '-%d-'%i
-        output =  os.path.join(outdir, prefix)
+    #for i, (freqtxt, datatxt, noisetxt) in enumerate(zip(freq_files,
+    #       data_files, noise_files)):
+        #i += 201
+    
+    
+    prefix = args.prefix or 'FIT-QU'
+    #prefix =  prefix + '-%d-'%i
+    output =  os.path.join(outdir, prefix)
+    print(input_data[0])
+    #try:
+    input_data_LoS =  numpy.loadtxt(input_data[0])
+    #except:
+    #     sys.exit('>>> Something wrong with your input data files.')
 
-        try:
-            input_data_LoS =  numpy.loadtxt(datatxt)
-        except:
-            sys.exit('>>> Something wrong with your input data files.')
+        #try:
+        #    input_noise_LoS =  numpy.loadtxt(noisetxt)
+        #except:
+        #    sys.exit('>>> Cannot open the input noise files.')
 
-        try:
-            input_noise_LoS =  numpy.loadtxt(noisetxt)
-        except:
-            sys.exit('>>> Cannot open the input noise files.')
+        #try:
+        #    input_freq_LoS =  numpy.loadtxt(freqtxt)
+        #except:
+        #    sys.exit('>>> something wrong with your input frequency file.')
+        
+    input_freq_LoS = input_data_LoS[:, 0]
+    Q = input_data_LoS[:, 2]
+    U = input_data_LoS[:, 3]
+    I = input_data_LoS[:, 1]
+    noiseq = input_data_LoS[:, 5]
+    noiseu = input_data_LoS[:, 6]
+    noisei = input_data_LoS[:, 4]
+    x = (3.0e8/input_freq_LoS)**2
 
-        try:
-            input_freq_LoS =  numpy.loadtxt(freqtxt)
-        except:
-            sys.exit('>>> something wrong with your input frequency file.')
+    if len(Q) != len(noiseq) or len(Q) != len(x):
+         sys.exit('>>> Length of input data, noise, and frequency not equal.')        
 
-        Q = input_data_LoS[:, 0]
-        U = input_data_LoS[:, 1]
-        I = input_data_LoS[:, 2]
-        noiseq = input_noise_LoS[:, 0]
-        noiseu = input_noise_LoS[:, 1]
-        noisei = input_noise_LoS[:, 2]
-        x = (3.0e8/input_freq_LoS)**2
-
-        if len(Q) != len(noiseq) or len(Q) != len(x):
-             sys.exit('>>> Length of input data, noise, and frequency not equal.')        
-
-        q, u = Q/I, U/I
-        pabs = pow( pow(q, 2) + pow(u, 2), 0.5)
-        Pabs = pow( pow(Q, 2) + pow(U, 2), 0.5)
+    q, u = Q/I, U/I
+    pabs = pow( pow(q, 2) + pow(u, 2), 0.5)
+    Pabs = pow( pow(Q, 2) + pow(U, 2), 0.5)
 
 
-        # compute sigma
-        sigmaq, sigmau, sigmap, sigmaPA = return_sigma(
+    # compute sigma
+    sigmaq, sigmau, sigmap, sigmaPA = return_sigma(
                q, u, pabs, Q, U, I, Pabs, noiseq,
                noiseu, noisei) 
 
 
-        # remove Nan from the data.
-        ind = ~numpy.isnan(pabs*sigmaq*sigmau)
-        x = x[ind]
-        q = q[ind]
-        u = u[ind]
-        sigmaq = sigmaq[ind]
-        sigmau = sigmau[ind]
-        sigmap = sigmap[ind]
-        sigmaPA = sigmaPA[ind]
+    # remove Nan from the data.
+    ind = ~numpy.isnan(pabs*sigmaq*sigmau)
+    x = x[ind]
+    q = q[ind]
+    u = u[ind]
+    sigmaq = sigmaq[ind]
+    sigmau = sigmau[ind]
+    sigmap = sigmap[ind]
+    sigmaPA = sigmaPA[ind]
 
-        # remove channels with error in fractional pol > error_clip
-        ind_clip = numpy.where( (sigmaq + sigmau)/2.0 > clip_error)
-        x = numpy.delete(x, ind_clip)
-        q = numpy.delete(q, ind_clip)
-        u = numpy.delete(u, ind_clip)
-        sigmap = numpy.delete(sigmap, ind_clip)
-        sigmaPA = numpy.delete(sigmaPA, ind_clip)
-        sigmaq = numpy.delete(sigmaq, ind_clip)
-        sigmau = numpy.delete(sigmau, ind_clip)
+    # remove channels with error in fractional pol > error_clip
+    ind_clip = numpy.where( (sigmaq + sigmau)/2.0 > clip_error)
+    x = numpy.delete(x, ind_clip)
+    q = numpy.delete(q, ind_clip)
+    u = numpy.delete(u, ind_clip)
+    sigmap = numpy.delete(sigmap, ind_clip)
+    sigmaPA = numpy.delete(sigmaPA, ind_clip)
+    sigmaq = numpy.delete(sigmaq, ind_clip)
+    sigmau = numpy.delete(sigmau, ind_clip)
 
 
-        # define parameters
-        parameter_names =  ['p$_{%d}$'%k for k in range(nparams)]
+    # define parameters
+    parameter_names =  ['p$_{%d}$'%k for k in range(nparams)]
 
-        # run multinest    
-        start = time.time()
-        pymultinest.run(LogLike, define_prior.prior, nparams,
-                   outputfiles_basename=output, **kwargs)
-        a = pymultinest.analyse.Analyzer(nparams, 
+    # run multinest    
+    start = time.time()
+    pymultinest.run(LogLike, define_prior.prior, nparams,
+                outputfiles_basename=output, **kwargs)
+    a = pymultinest.analyse.Analyzer(nparams, 
                    outputfiles_basename=output)
-        end = time.time()
-        Dtime = end - start
+    end = time.time()
+    Dtime = end - start
 
-        # get important fitting results.
-        best_fits = numpy.array([float(param) for param
-                in a.get_best_fit()['parameters']])
+    # get important fitting results.
+    best_fits = numpy.array([float(param) for param
+           in a.get_best_fit()['parameters']])
 
-        qmodel, umodel = define_model.model(x, best_fits)
+    qmodel, umodel = define_model.model(x, best_fits)
       
-        residualq = residuals(q, qmodel, sigmaq)
-        residualu = residuals(u, umodel, sigmau)
-        Ndata = len(x)
-        Nnorm = pow((Ndata - nparams), -1)
-         
-        redchisq_q = Nnorm * sum(pow(residualq, 2))
-        redchisq_u = Nnorm * sum(pow(residualq, 2))
-        redchisq = 0.5 * (redchisq_q + redchisq_u)
+    residualq = residuals(q, qmodel, sigmaq)
+    residualu = residuals(u, umodel, sigmau)
+    
+    Ndata = len(x)
+    Nnorm = pow((Ndata - nparams), -1)
+        
+    redchisq_q = Nnorm * sum(pow(residualq, 2))
+    redchisq_u = Nnorm * sum(pow(residualq, 2))
+    redchisq = 0.5 * (redchisq_q + redchisq_u)
 
-        residual_data = 0.5 * (residualq + residualu) 
+    residual_data = 0.5 * (residualq + residualu) 
 
-        errors_best_fits = numpy.array([a.get_stats()['marginals'][k]['sigma']
-                    for k in range(nparams)])
-        loglike = a.get_best_fit()['log_likelihood']
-        output_stats = a.get_mode_stats()
-        logZ = output_stats['global evidence']
-        logZerr = output_stats['global evidence error']
-        AIC = 2 * nparams - 2 * loglike
-        BIC = nparams * numpy.log(Ndata) - 2 * loglike
+    errors_best_fits = numpy.array([a.get_stats()['marginals'][k]['sigma']
+                for k in range(nparams)])
+    loglike = a.get_best_fit()['log_likelihood']
+    output_stats = a.get_mode_stats()
+    logZ = output_stats['global evidence']
+    logZerr = output_stats['global evidence error']
+    AIC = 2 * nparams - 2 * loglike
+    BIC = nparams * numpy.log(Ndata) - 2 * loglike
+    res_mean = residual_data.mean()
+    res_std = residual_data.std()
+    
+    pdata = q + 1j * u   
+    pmodel = qmodel + 1j * umodel
+    
+    phi_range = numpy.arange(-args.faraday_depth, 
+                args.faraday_depth, args.sample_depth)
+                    
+    
+    FWHM = 3.8/(x[-1]-x[0])
+    sigma = FWHM/(2.35482)
+          
+          
+    phi_range, fcleaned_data, fcomp = rmsyn.main(lam=x, pdata=pdata, phi_max=args.faraday_depth, phi_step=args.sample_depth,
+         niter=args.rmsyn_niter, gain=args.rmsyn_gain, plot=False)
+    
+    phi_range, fcleaned_model, fcomp = rmsyn.main(lam=x, pdata=pmodel, phi_max=args.faraday_depth, phi_step=args.sample_depth,
+         niter=args.rmsyn_niter, gain=args.rmsyn_gain, plot=False)
+              
+   
+    store_output = numpy.hstack((best_fits, errors_best_fits, loglike, 
+              logZ, logZerr, redchisq, res_mean, res_std, AIC, BIC, Dtime))
 
-        store_output = numpy.hstack((best_fits, errors_best_fits, loglike, 
-              logZ, logZerr, redchisq, AIC, BIC, Dtime))
+    # write the output
+    for k in range(len(store_output)):
+        write_stats.write('%.4f \t'%store_output[k])
+    write_stats.write('\n')
 
-        # write the output
-        for k in range(len(store_output)):
-            write_stats.write('%.4f \t'%store_output[k])
-        write_stats.write('\n')
-
-        # making plots.
-        if args.make_plots:
-            doplots.do_plots(x=x, qdata=q, udata=u, sigmap=sigmap, sigmaPA=sigmaPA,
-                qmodel=qmodel, umodel=umodel, phi_max=args.faraday_depth, 
-                phi_step=args.sample_depth, nparams=nparams,  
+    # making plots.
+    if args.make_plots:
+        doplots.do_plots(x=x, qdata=q, udata=u, sigmap=sigmap, sigmaPA=sigmaPA,
+                qmodel=qmodel, umodel=umodel, nparams=nparams,  
                 weighted_posteriors=a, parameter_names=parameter_names,
                 output=output, redchisq=redchisq, residual_data=residual_data, 
-                niter=args.rmsyn_niter, gain=args.rmsyn_gain)
+                residual_mean=res_mean, fdata=fcleaned_data, fmodel=fcleaned_model,
+                residual_std=res_std, phi_range=phi_range)
     write_stats.close()
+    
+    remove_file = ['.points', '.dat', 'summary.txt', '.ptprob', '.iterinfo']
+    for remove in remove_file: 
+        files = glob.glob(output + '*%s'%remove)
+        for f in files:
+            os.system('rm -rf %s'%f)
 
-
+    print('Execution time %.2f seconds'%Dtime)
