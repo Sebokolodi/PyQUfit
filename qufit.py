@@ -289,6 +289,17 @@ if __name__=='__main__':
               logZ, logZerr, redchisq, res_mean, res_std, AIC, BIC, Dtime))
 
     # write the output
+    len_bestfit = len(best_fits)
+    param_list= ['param_%d'%i for i in range(1, len_bestfit+1)]
+    param_listerr = ['param_%d_err'%i for i in range(1, len_bestfit+1)]
+    additional_list = ['LogLike', 'LogZ', 'LogZerr', 'redchisq', 'Residual_mean', 'Residual_std', 'AIC', 'BIC', 'exc_time (s)']
+    
+    title = numpy.hstack((param_list, param_listerr, additional_list))
+        
+    for k in range(len(store_output)):
+        write_stats.write('%s \t'%title[k])
+    write_stats.write('\n')  
+    
     for k in range(len(store_output)):
         write_stats.write('%.4f \t'%store_output[k])
     write_stats.write('\n')
