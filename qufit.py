@@ -10,7 +10,6 @@ import json
 import time
 import doplots 
 import rmsynthesis as rmsyn
-from do_hogbom_clean import do_rmclean_hogbom 
 import glob
 
 
