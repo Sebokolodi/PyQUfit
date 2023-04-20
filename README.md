@@ -19,10 +19,10 @@ The files:
 
 2. Required information  
    For now, the user need to specify using True/False, the model they want to fit. I plan to automate this at some point.   
-   A user needs to specify this inside the following files:
-   i.'define_model.py'        
-   ii.'define_priors.py'
-   Script (i) defines the models to use. The user can easily update this with their model of interest. 
+   A user needs to specify this inside the following files:          
+   i.'define_model.py'                    
+   ii.'define_priors.py'            
+   Script (i) defines the models to use. The user can easily update this with their model of interest.         
    Script (ii) defines the priors intervals to use for each model. If a user changes the model in script (i), they will
    also need to change it in script (ii).
 
